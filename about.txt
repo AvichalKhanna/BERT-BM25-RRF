@@ -1,0 +1,29 @@
+This is a Neural Information Retrieval Engine 
+
+3 components we will build 
+
+1. BM25 - since around 1994, ctrl + F but smarter 
+2. BERT Bi Encoder + FAISSS - Semantics 
+converts documents into 384 number vector embedding 
+FAISS finds closest vectors real fast 
+FAISS Facebook Ai Similarity Search 
+the bert Bi Encoder + FAISS healps find documents by meaning not just words 
+3.RRF Fusion - This combines both 
+Takes results from both the BM25 and the BERT Bi Encoder + FAISS and merges and re ranks them intelligently 
+Reciprocal rank fusion is used 
+
+MS MACRO - Microsoft's collection of Reading comphrehensions dataset focused on deep learning
+
+the first dataset was questuion answerinf featuring 100,000 real bing questions and a human generated answer for them 
+since then microsoft released a 1,000,000 question dataset, a natural language generation dataset, a passage ranking dataset,
+a keyphrase extraction dataset, crawling dataset and a conversational search
+
+RRF - Reciprocal rank fusion k = 60 standard
+score = 1 / ( 60 + rank)
+its proven in research papers that the buffer number being 60 is very opptimized to prevent rank 1 
+from being too dominant
+
+No we give the following weights to both the models 
+to bm25 we give 0.4 asd it is very good at exact keywords matching but not good in understanding the underlying meaning 
+while we give BERT a weight of 0.6 because bert is relatively better at understanding meaning 
+

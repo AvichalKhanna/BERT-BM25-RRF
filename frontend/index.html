@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Neural IR Engine — Avichal Khanna</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    a {
+    text-decoration: none;
+    color: inherit;
+    }
+
+    header {
+      padding: 2rem 3rem;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    header p {
+      font-size: 12px;
+      color: #666;
+      margin-top: 3px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-badge {
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      align-items: center;
+    }
+
+    main { padding: 2rem 3rem; max-width: 1400px; margin: 0 auto; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+      padding: 1rem 2rem;
+    }
+
+    .metric {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 16px 20px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                border-color 0.3s ease,
+                box-shadow 0.3s ease;
+    }
+
+    .metric:hover {
+    transform: translateY(-4px);
+    border-color: #555;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 26px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: #444;
+      margin-top: 3px;
+    }
+
+    .metric-sub.green { color: #22c55e; }
+
+    .search-section {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      margin: 1rem 2rem;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .search-row input {
+      flex: 1;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .search-row input:focus { border-color: #555; }
+
+    .search-row button {
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .search-row button:hover { opacity: 0.85; }
+    .search-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      cursor: pointer;
+      background: transparent;
+      transition: all 0.15s;
+    }
+
+    .chip:hover { border-color: #555; color: #ccc; }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+      margin: 1rem 2rem;
+    }
+
+    .result-col {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .result-col.best { border-color: #1d9e75; }
+
+    .col-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .col-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .col-latency {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    .badge-blue { background: #1e3a5f; color: #60a5fa; }
+    .badge-teal { background: #0f2e24; color: #34d399; }
+    .badge-purple { background: #2d1f5e; color: #a78bfa; }
+
+    .result-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1f1f1f;
+    }
+
+    .result-item:last-child { border-bottom: none; }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .result-rank {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .result-score {
+      font-size: 11px;
+      color: #444;
+    }
+
+    .result-text {
+      font-size: 12px;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    .score-bar {
+      height: 2px;
+      border-radius: 1px;
+      margin-top: 8px;
+      background: #333;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 1px;
+      transition: width 0.4s ease;
+    }
+
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      color: #444;
+      font-size: 13px;
+    }
+
+    .loading {
+      padding: 2rem;
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+    }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 2rem;
+      margin: 1rem 2rem;
+    }
+
+    .chart-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 1.25rem;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .latency-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .lat-label {
+      font-size: 12px;
+      color: #888;
+      width: 65px;
+      flex-shrink: 0;
+    }
+
+    .lat-bar-wrap {
+      flex: 1;
+      height: 22px;
+      background: #111;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .lat-bar {
+      height: 100%;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      transition: width 0.6s ease;
+    }
+
+    .lat-val {
+      font-size: 12px;
+      color: #555;
+      width: 45px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #666;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #333;
+      font-size: 12px;
+      border-top: 1px solid #1a1a1a;
+    }
+
+    footer a { color: #555; text-decoration: none; }
+    footer a:hover { color: #888; }
+
+    .back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #1a1a1a;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  margin-left: 1rem;
+  margin-top: 1rem;;
+}
+
+.back-btn:hover {
+  border-color: #555;
+  transform: translateX(-3px);
+}
+
+.detail-content {
+  margin: 1rem 1rem;   
+}
+
+  </style>
+</head>
+<body>
+<div id="main">
+<header>
+  <div>
+    <h1>Neural IR Engine</h1>
+    <p>BM25 + MiniLM bi-encoder + FAISS · 676K MS MARCO passages</p>
+  </div>
+  <div class="status-badge">
+    <span class="status-dot"></span>
+    <span id="api-status">connecting...</span>
+  </div>
+</header>
+
+ <div class="metrics">
+    <a href="#corpus">
+      <div class="metric">
+        <div class="metric-label">corpus size</div>
+        <div class="metric-value" id="m-corpus">—</div>
+        <div class="metric-sub">MS MARCO passages</div>
+      </div>
+    </a>
+    <a href="#mrr">
+      <div class="metric">
+        <div class="metric-label">MRR@10 hybrid</div>
+        <div class="metric-value">0.38</div>
+        <div class="metric-sub green">+31% vs BM25 baseline</div>
+      </div>
+    </a>
+    <a href="#latency">
+      <div class="metric">
+        <div class="metric-label">p99 latency</div>
+        <div class="metric-value" id="m-latency">—</div>
+        <div class="metric-sub">hybrid search</div>
+      </div>
+    </a>
+    <a href="#embedding">
+      <div class="metric">
+        <div class="metric-label">embedding model</div>
+        <div class="metric-value" style="font-size:22px; padding-top:4px;">MiniLM-L6</div>
+        <div class="metric-sub">384-dim · sentence-transformers</div>
+      </div>
+    </a>
+  </div>
+  <div class="search-section">
+    <div class="search-row">
+      <input
+        type="text"
+        id="query"
+        placeholder="Search 676K passages..."
+        value="what is machine learning"
+        onkeydown="if(event.key==='Enter') runSearch()"
+      />
+      <button onclick="runSearch()" id="search-btn">Search</button>
+    </div>
+    <div class="chips">
+      <span style="font-size:11px; color:#444; padding:5px 0;">Try:</span>
+      <button class="chip" onclick="setQuery('symptoms of diabetes')">symptoms of diabetes</button>
+      <button class="chip" onclick="setQuery('how does photosynthesis work')">how does photosynthesis work</button>
+      <button class="chip" onclick="setQuery('best programming languages')">best programming languages</button>
+      <button class="chip" onclick="setQuery('causes of climate change')">causes of climate change</button>
+      <button class="chip" onclick="setQuery('what is a neural network')">what is a neural network</button>
+    </div>
+  </div>
+
+   <div class="results-grid">
+    <div class="result-col">
+      <div class="col-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="col-title">BM25</span>
+          <span class="badge badge-blue">keyword</span>
+        </div>
+        <span class="col-latency" id="bm25-lat">—</span>
+      </div>
+      <div id="bm25-results"><div class="empty-state">Run a search</div></div>
+    </div>
+
+    <div class="result-col">
+      <div class="col-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="col-title">BERT dense</span>
+          <span class="badge badge-teal">semantic</span>
+        </div>
+        <span class="col-latency" id="bert-lat">—</span>
+      </div>
+      <div id="bert-results"><div class="empty-state">Run a search</div></div>
+    </div>
+
+    <div class="result-col best">
+      <div class="col-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="col-title">Hybrid RRF</span>
+          <span class="badge badge-purple">best</span>
+        </div>
+        <span class="col-latency" id="hybrid-lat">—</span>
+      </div>
+      <div id="hybrid-results"><div class="empty-state">Run a search</div></div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">live latency (ms)</div>
+      <div id="lat-bars">
+        <div class="latency-row">
+          <span class="lat-label">BM25</span>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar" id="bar-bm25" style="width:0%; background:#1e3a8a; color:#93c5fd;">—</div>
+          </div>
+          <span class="lat-val" id="val-bm25">—</span>
+        </div>
+        <div class="latency-row">
+          <span class="lat-label">BERT</span>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar" id="bar-bert" style="width:0%; background:#0f2e24; color:#6ee7b7;">—</div>
+          </div>
+          <span class="lat-val" id="val-bert">—</s>
+
+            </span>
+        </div>
+    </div>
+  </div>
+  </div>
+  </div>
+  
+
+  <!-- DETAIL -->
+  <div id="detail" style="display:none" class="header">
+    <a href="#" class="back-btn">← back</a>
+    <div id="detail-content" class="detail-content"></div>
+  </div>
+
+    <script>
+
+        const API = 'http://localhost:5000'
+
+// on load — fetch stats
+async function loadStats() {
+  const res = await fetch(`${API}/stats`)
+  const data = await res.json()
+  document.getElementById('m-corpus').textContent = data.corpus_size.toLocaleString()
+  document.getElementById('api-status').textContent = 'online'
+}
+
+// search function
+async function runSearch() {
+  const query = document.getElementById('query').value
+  const t0 = performance.now()
+
+  document.getElementById('bm25-results').innerHTML = 'searching...'
+  document.getElementById('bert-results').innerHTML = 'searching...'
+  document.getElementById('hybrid-results').innerHTML = 'searching...'
+
+  const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}`)
+  const data = await res.json()
+
+  const elapsed = Math.round(performance.now() - t0)
+
+  renderResults('bm25-results', data.bm25, 'bm25-lat', data.latency.bm25)
+  renderResults('bert-results', data.dense, 'bert-lat', data.latency.dense)
+  renderResults('hybrid-results', data.hybrid, 'hybrid-lat', elapsed)
+
+  updateBars(data.latency.bm25, data.latency.dense, elapsed)
+}
+
+function renderResults(containerId, results, latId, lat) {
+  document.getElementById(latId).textContent = lat + 'ms'
+  document.getElementById(containerId).innerHTML = results.map(r => `
+    <div class="result-card">
+      <div class="result-rank">#${r.rank}</div>
+      <div class="result-text">${r.text.slice(0, 200)}...</div>
+      <div class="result-score">score: ${r.score.toFixed(4)}</div>
+    </div>
+  `).join('')
+}
+
+function updateBars(bm25, bert, hybrid) {
+  const max = Math.max(bm25, bert, hybrid)
+  document.getElementById('bar-bm25').style.width = (bm25/max*100) + '%'
+  document.getElementById('bar-bert').style.width = (bert/max*100) + '%'
+  document.getElementById('val-bm25').textContent = bm25 + 'ms'
+  document.getElementById('val-bert').textContent = bert + 'ms'
+}
+
+function setQuery(q) {
+  document.getElementById('query').value = q
+}
+
+loadStats()
+
+    const pages = {
+      corpus: '<h2 style="text-decoration:underline;">Corpus Size</h2><p>The Corpus Size refers to the total volume of data contained imn our dataset, we are using the MS MACRO Passage Randking dataset with a total of 8.8 million corpus zie. The passages were extracted from approximately 3.5 million unique URL\'s gathered by the Bing Search Engine between 2016 to 2018. <br> <br> Passage Details : \n <br> Mean Length: ~56 tokens. <br> \n Median Length: 50 tokens. <br> \n Maximum Length: 362 tokens.</p>',
+      mrr: '<h2 style="text-decoration:underline;">Mean Reciprocal Rank</h2><p>Mean Reciprocal Rank(MRR) is a statistical measure to evalute search engines and recommendation systems, it primarily focuses on how high the first revelant result appears in a list</p> <img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*bUdDkZKtwRYTJzX_l5WSJQ.png" alt="Mean Reciprocal Rank">',
+      latency: '<h2 style="text-decoration:underline;">p99 Latency</h2><p>The latency of this hybrid system using MRR usually yileds between 50ms and 200ms per query when searching the full 8.8 million MS MARCO corpus. Before searching the system must turn the query into a mathematical vector using an AI model here BERT Bi Encoder, this stage is purely computational and depends on the underlying hardware, it also adds a fixed tax to every search that traditional keyword search using BM25 does not have. The Second Stage is the retrieval stage where the system runs two different searches together, keywords or sparse search and semantic or dense search. The third stage is fusion and ranking using Reciprocal Rank Fusion RRF. \n <br> <br> Stage 1 Query Encosing: 10 - 15ms \n <br> Stage 2 Retrieval Stage: 30ms - 90ms \n <br> Stage 3 Fusion and Ranking: 10 - 20ms</p>',
+      embedding: '<h2>Embedding Model</h2><p>An embedding model is a type of AI that avts like a universal translator truning human language into a long list of numbers called a vector, we utilize the all-MiniLM-L6-V2 from the Sentense Transformers Library, It is one of the most widely used small models for turning text into numbers due to its extreme efficiency.</p>'
+    }
+
+    window.addEventListener('hashchange', () => {
+      const page = location.hash.slice(1)
+      if (pages[page]) {
+        document.getElementById('main').style.display = 'none'
+        document.getElementById('detail-content').innerHTML = pages[page]
+        document.getElementById('detail').style.display = 'block'
+      } else {
+        document.getElementById('detail').style.display = 'none'
+        document.getElementById('main').style.display = 'block'
+      }
+    })
+  </script>
